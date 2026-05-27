@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# Whisper model cache
+~/.cache/whisper/
+
+# Output files
+output/
+
+# IDE
+.idea/
+.vscode/
+
+# pytest
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
