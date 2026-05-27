@@ -83,3 +83,20 @@ def test_download_audio_calls_ytdlp():
          'https://youtube.com/watch?v=abc123'],
         check=True
     )
+
+
+def test_transcribe_writes_text_to_file(tmp_path):
+    mp3_path = tmp_path / "audio.mp3"
+    mp3_path.touch()
+    txt_path = tmp_path / "audio.txt"
+
+    mock_model = MagicMock()
+    mock_model.transcribe.return_value = {"text": "Hello world transcript."}
+
+    with patch("whisper.load_model", return_value=mock_model) as mock_load:
+        from transcribe import transcribe
+        transcribe(mp3_path, txt_path, "base")
+
+    mock_load.assert_called_once_with("base")
+    mock_model.transcribe.assert_called_once_with(str(mp3_path))
+    assert txt_path.read_text() == "Hello world transcript."

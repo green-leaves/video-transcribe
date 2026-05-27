@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import whisper
+
 
 def slugify(text: str) -> str:
     text = text.lower()
@@ -24,6 +26,14 @@ def get_video_info(url: str) -> tuple[str, str]:
     )
     info = json.loads(result.stdout)
     return info['id'], info['title']
+
+
+def transcribe(mp3_path: Path, txt_path: Path, model: str) -> None:
+    print(f"Transcribing {mp3_path} with whisper model '{model}' ...")
+    model_obj = whisper.load_model(model)
+    result = model_obj.transcribe(str(mp3_path))
+    txt_path.write_text(result['text'])
+    print(f"Raw transcript written to {txt_path}")
 
 
 def download_audio(url: str, output_path: Path) -> None:
