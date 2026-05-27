@@ -52,3 +52,20 @@ def test_check_dependencies_exits_when_claude_missing():
         from transcribe import check_dependencies
         with pytest.raises(SystemExit):
             check_dependencies()
+
+
+def test_get_video_info_returns_id_and_title():
+    fake_info = json.dumps({"id": "dQw4w9WgXcQ", "title": "Never Gonna Give You Up"})
+    mock_result = MagicMock()
+    mock_result.stdout = fake_info
+
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        from transcribe import get_video_info
+        video_id, title = get_video_info("https://youtube.com/watch?v=dQw4w9WgXcQ")
+
+    mock_run.assert_called_once_with(
+        ['yt-dlp', '--dump-json', 'https://youtube.com/watch?v=dQw4w9WgXcQ'],
+        capture_output=True, text=True, check=True
+    )
+    assert video_id == "dQw4w9WgXcQ"
+    assert title == "Never Gonna Give You Up"

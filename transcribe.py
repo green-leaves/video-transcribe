@@ -16,6 +16,16 @@ def slugify(text: str) -> str:
     return text.strip('-')
 
 
+def get_video_info(url: str) -> tuple[str, str]:
+    print(f"Fetching video info for {url} ...")
+    result = subprocess.run(
+        ['yt-dlp', '--dump-json', url],
+        capture_output=True, text=True, check=True
+    )
+    info = json.loads(result.stdout)
+    return info['id'], info['title']
+
+
 def check_dependencies() -> None:
     for tool in ('yt-dlp', 'claude'):
         if shutil.which(tool) is None:
