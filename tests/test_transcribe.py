@@ -69,3 +69,17 @@ def test_get_video_info_returns_id_and_title():
     )
     assert video_id == "dQw4w9WgXcQ"
     assert title == "Never Gonna Give You Up"
+
+
+def test_download_audio_calls_ytdlp():
+    mp3_path = Path("output/abc123-some-title.mp3")
+
+    with patch("subprocess.run") as mock_run:
+        from transcribe import download_audio
+        download_audio("https://youtube.com/watch?v=abc123", mp3_path)
+
+    mock_run.assert_called_once_with(
+        ['yt-dlp', '-x', '--audio-format', 'mp3', '-o', str(mp3_path),
+         'https://youtube.com/watch?v=abc123'],
+        check=True
+    )

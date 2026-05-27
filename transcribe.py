@@ -26,6 +26,14 @@ def get_video_info(url: str) -> tuple[str, str]:
     return info['id'], info['title']
 
 
+def download_audio(url: str, output_path: Path) -> None:
+    print(f"Downloading audio to {output_path} ...")
+    subprocess.run(
+        ['yt-dlp', '-x', '--audio-format', 'mp3', '-o', str(output_path), url],
+        check=True
+    )
+
+
 def check_dependencies() -> None:
     for tool in ('yt-dlp', 'claude'):
         if shutil.which(tool) is None:
