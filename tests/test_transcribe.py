@@ -1,6 +1,5 @@
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-import json
 import pytest
 from transcribe import slugify, build_output_paths
 
@@ -28,45 +27,30 @@ def test_build_output_paths_structure():
     assert paths["md"] == Path("output/dQw4w9WgXcQ-never-gonna-give-you-up.md")
 
 
-def test_check_dependencies_passes_when_all_found():
-    with patch("shutil.which", return_value="/usr/bin/yt-dlp"):
+def test_check_dependencies_passes_when_claude_found():
+    with patch("shutil.which", return_value="/usr/bin/claude"):
         from transcribe import check_dependencies
         check_dependencies()  # should not raise
 
 
-def test_check_dependencies_exits_when_ytdlp_missing():
-    def which_side_effect(name):
-        return None if name == "yt-dlp" else "/usr/bin/claude"
-
-    with patch("shutil.which", side_effect=which_side_effect):
-        from transcribe import check_dependencies
-        with pytest.raises(SystemExit):
-            check_dependencies()
-
-
 def test_check_dependencies_exits_when_claude_missing():
-    def which_side_effect(name):
-        return None if name == "claude" else "/usr/bin/yt-dlp"
-
-    with patch("shutil.which", side_effect=which_side_effect):
+    with patch("shutil.which", return_value=None):
         from transcribe import check_dependencies
         with pytest.raises(SystemExit):
             check_dependencies()
 
 
 def test_get_video_info_returns_id_and_title():
-    fake_info = json.dumps({"id": "dQw4w9WgXcQ", "title": "Never Gonna Give You Up"})
-    mock_result = MagicMock()
-    mock_result.stdout = fake_info
+    mock_ydl = MagicMock()
+    mock_ydl.__enter__ = MagicMock(return_value=mock_ydl)
+    mock_ydl.__exit__ = MagicMock(return_value=False)
+    mock_ydl.extract_info.return_value = {"id": "dQw4w9WgXcQ", "title": "Never Gonna Give You Up"}
 
-    with patch("subprocess.run", return_value=mock_result) as mock_run:
+    with patch("yt_dlp.YoutubeDL", return_value=mock_ydl):
         from transcribe import get_video_info
         video_id, title = get_video_info("https://youtube.com/watch?v=dQw4w9WgXcQ")
 
-    mock_run.assert_called_once_with(
-        ['yt-dlp', '--dump-json', 'https://youtube.com/watch?v=dQw4w9WgXcQ'],
-        capture_output=True, text=True, check=True
-    )
+    mock_ydl.extract_info.assert_called_once_with("https://youtube.com/watch?v=dQw4w9WgXcQ", download=False)
     assert video_id == "dQw4w9WgXcQ"
     assert title == "Never Gonna Give You Up"
 
@@ -74,15 +58,17 @@ def test_get_video_info_returns_id_and_title():
 def test_download_audio_calls_ytdlp():
     mp3_path = Path("output/abc123-some-title.mp3")
 
-    with patch("subprocess.run") as mock_run:
+    mock_ydl = MagicMock()
+    mock_ydl.__enter__ = MagicMock(return_value=mock_ydl)
+    mock_ydl.__exit__ = MagicMock(return_value=False)
+
+    with patch("yt_dlp.YoutubeDL", return_value=mock_ydl) as mock_cls:
         from transcribe import download_audio
         download_audio("https://youtube.com/watch?v=abc123", mp3_path)
 
-    mock_run.assert_called_once_with(
-        ['yt-dlp', '-x', '--audio-format', 'mp3', '-o', str(mp3_path),
-         'https://youtube.com/watch?v=abc123'],
-        check=True
-    )
+    mock_ydl.download.assert_called_once_with(["https://youtube.com/watch?v=abc123"])
+    opts = mock_cls.call_args[0][0]
+    assert opts['postprocessors'][0]['preferredcodec'] == 'mp3'
 
 
 def test_transcribe_writes_text_to_file(tmp_path):
