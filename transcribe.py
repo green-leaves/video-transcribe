@@ -18,6 +18,23 @@ def slugify(text: str) -> str:
     return text.strip('-')
 
 
+def build_output_paths(output_dir: str, video_id: str, title: str) -> dict:
+    slug = f"{video_id}-{slugify(title)}"
+    base = Path(output_dir) / slug
+    return {
+        'mp3': base.with_suffix('.mp3'),
+        'txt': base.with_suffix('.txt'),
+        'md': base.with_suffix('.md'),
+    }
+
+
+def check_dependencies() -> None:
+    for tool in ('yt-dlp', 'claude'):
+        if shutil.which(tool) is None:
+            print(f"Error: '{tool}' not found on PATH. Please install it.")
+            sys.exit(1)
+
+
 def get_video_info(url: str) -> tuple[str, str]:
     print(f"Fetching video info for {url} ...")
     result = subprocess.run(
@@ -26,6 +43,14 @@ def get_video_info(url: str) -> tuple[str, str]:
     )
     info = json.loads(result.stdout)
     return info['id'], info['title']
+
+
+def download_audio(url: str, output_path: Path) -> None:
+    print(f"Downloading audio to {output_path} ...")
+    subprocess.run(
+        ['yt-dlp', '-x', '--audio-format', 'mp3', '-o', str(output_path), url],
+        check=True
+    )
 
 
 def transcribe(mp3_path: Path, txt_path: Path, model: str) -> None:
@@ -49,26 +74,31 @@ def format_transcript(txt_path: Path, md_path: Path, prompt_path: Path) -> None:
     print(f"Final markdown written to {md_path}")
 
 
-def download_audio(url: str, output_path: Path) -> None:
-    print(f"Downloading audio to {output_path} ...")
-    subprocess.run(
-        ['yt-dlp', '-x', '--audio-format', 'mp3', '-o', str(output_path), url],
-        check=True
-    )
+def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser(description="Transcribe a YouTube video to markdown.")
+    parser.add_argument('--url', required=True, help='YouTube video URL')
+    parser.add_argument('--output', default='./output', help='Output directory (default: ./output)')
+    parser.add_argument('--model', default='base',
+                        choices=['tiny', 'base', 'small', 'medium', 'large'],
+                        help='Whisper model size (default: base)')
+    args = parser.parse_args()
+
+    check_dependencies()
+
+    Path(args.output).mkdir(parents=True, exist_ok=True)
+
+    video_id, title = get_video_info(args.url)
+    paths = build_output_paths(args.output, video_id, title)
+
+    download_audio(args.url, paths['mp3'])
+    transcribe(paths['mp3'], paths['txt'], args.model)
+
+    prompt_path = Path(__file__).parent / 'spec' / 'prompt.md'
+    format_transcript(paths['txt'], paths['md'], prompt_path)
+
+    print(f"\nDone! Transcript saved to {paths['md']}")
 
 
-def check_dependencies() -> None:
-    for tool in ('yt-dlp', 'claude'):
-        if shutil.which(tool) is None:
-            print(f"Error: '{tool}' not found on PATH. Please install it.")
-            sys.exit(1)
-
-
-def build_output_paths(output_dir: str, video_id: str, title: str) -> dict:
-    slug = f"{video_id}-{slugify(title)}"
-    base = Path(output_dir) / slug
-    return {
-        'mp3': base.with_suffix('.mp3'),
-        'txt': base.with_suffix('.txt'),
-        'md': base.with_suffix('.md'),
-    }
+if __name__ == '__main__':
+    main()

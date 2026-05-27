@@ -119,3 +119,28 @@ def test_format_transcript_calls_claude_and_writes_md(tmp_path):
     called_args = mock_run.call_args
     assert called_args[0][0][0] == 'claude'
     assert md_path.read_text() == "# Cleaned Transcript\n\nHello world."
+
+
+def test_main_wires_pipeline(tmp_path):
+    import sys
+    sys.argv = [
+        'transcribe.py',
+        '--url', 'https://youtube.com/watch?v=abc123',
+        '--output', str(tmp_path),
+        '--model', 'tiny',
+    ]
+
+    with patch("transcribe.check_dependencies") as mock_check, \
+         patch("transcribe.get_video_info", return_value=("abc123", "Test Video")) as mock_info, \
+         patch("transcribe.download_audio") as mock_download, \
+         patch("transcribe.transcribe") as mock_transcribe, \
+         patch("transcribe.format_transcript") as mock_format:
+
+        from transcribe import main
+        main()
+
+    mock_check.assert_called_once()
+    mock_info.assert_called_once_with("https://youtube.com/watch?v=abc123")
+    mock_download.assert_called_once()
+    mock_transcribe.assert_called_once()
+    mock_format.assert_called_once()
