@@ -36,6 +36,19 @@ def transcribe(mp3_path: Path, txt_path: Path, model: str) -> None:
     print(f"Raw transcript written to {txt_path}")
 
 
+def format_transcript(txt_path: Path, md_path: Path, prompt_path: Path) -> None:
+    print("Formatting transcript with Claude ...")
+    system_prompt = prompt_path.read_text()
+    transcript = txt_path.read_text()
+    message = f"{system_prompt}\n\nRaw transcript:\n\n{transcript}"
+    result = subprocess.run(
+        ['claude', '-p', message],
+        capture_output=True, text=True, check=True
+    )
+    md_path.write_text(result.stdout)
+    print(f"Final markdown written to {md_path}")
+
+
 def download_audio(url: str, output_path: Path) -> None:
     print(f"Downloading audio to {output_path} ...")
     subprocess.run(

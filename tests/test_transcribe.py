@@ -100,3 +100,22 @@ def test_transcribe_writes_text_to_file(tmp_path):
     mock_load.assert_called_once_with("base")
     mock_model.transcribe.assert_called_once_with(str(mp3_path))
     assert txt_path.read_text() == "Hello world transcript."
+
+
+def test_format_transcript_calls_claude_and_writes_md(tmp_path):
+    txt_path = tmp_path / "audio.txt"
+    txt_path.write_text("raw transcript text")
+    md_path = tmp_path / "audio.md"
+    prompt_path = tmp_path / "prompt.md"
+    prompt_path.write_text("You are a transcript cleaner.")
+
+    mock_result = MagicMock()
+    mock_result.stdout = "# Cleaned Transcript\n\nHello world."
+
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        from transcribe import format_transcript
+        format_transcript(txt_path, md_path, prompt_path)
+
+    called_args = mock_run.call_args
+    assert called_args[0][0][0] == 'claude'
+    assert md_path.read_text() == "# Cleaned Transcript\n\nHello world."
