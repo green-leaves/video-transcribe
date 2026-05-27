@@ -16,6 +16,13 @@ def slugify(text: str) -> str:
     return text.strip('-')
 
 
+def check_dependencies() -> None:
+    for tool in ('yt-dlp', 'claude'):
+        if shutil.which(tool) is None:
+            print(f"Error: '{tool}' not found on PATH. Please install it.")
+            sys.exit(1)
+
+
 def build_output_paths(output_dir: str, video_id: str, title: str) -> dict:
     slug = f"{video_id}-{slugify(title)}"
     base = Path(output_dir) / slug
