@@ -54,8 +54,10 @@ def download_audio(url: str, output_path: Path) -> None:
 
 
 def transcribe(mp3_path: Path, txt_path: Path, model: str) -> None:
-    print(f"Transcribing {mp3_path} with whisper model '{model}' ...")
-    model_obj = whisper.load_model(model)
+    import torch
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Transcribing {mp3_path} with whisper model '{model}' on {device} ...")
+    model_obj = whisper.load_model(model, device=device)
     result = model_obj.transcribe(str(mp3_path), verbose=True, language='en')
     txt_path.write_text(result['text'], encoding='utf-8')
     print(f"Raw transcript written to {txt_path}")
