@@ -69,7 +69,8 @@ def format_transcript(txt_path: Path, md_path: Path, prompt_path: Path) -> None:
     transcript = txt_path.read_text(encoding='utf-8')
     message = f"{system_prompt}\n\nRaw transcript:\n\n{transcript}"
     result = subprocess.run(
-        ['claude', '-p', message],
+        ['claude', '-p'],
+        input=message,
         capture_output=True, text=True, encoding='utf-8', check=True
     )
     md_path.write_text(result.stdout, encoding='utf-8')
@@ -86,23 +87,25 @@ def main() -> None:
     parser.add_argument('--model', default='base',
                         choices=['tiny', 'base', 'small', 'medium', 'large'],
                         help='Whisper model size (default: base)')
-    parser.add_argument('--no-format', action='store_true',
-                        help='Skip Claude formatting step, output raw transcript txt only')
+    parser.add_argument('--format', action='store_true',
+                        help='Run Claude formatting step to produce a cleaned markdown transcript')
     args = parser.parse_args()
 
     Path(args.output).mkdir(parents=True, exist_ok=True)
 
-    run_format = not args.no_format
-    if run_format:
+    if args.format:
         check_dependencies()
 
     prompt_path = Path(__file__).parent / 'spec' / 'prompt.md'
 
     if args.file:
         audio_path = Path(args.file)
-        txt_path = Path(args.output) / audio_path.with_suffix('.txt').name
-        transcribe(audio_path, txt_path, args.model)
-        if run_format:
+        if audio_path.suffix.lower() == '.txt':
+            txt_path = audio_path
+        else:
+            txt_path = Path(args.output) / audio_path.with_suffix('.txt').name
+            transcribe(audio_path, txt_path, args.model)
+        if args.format:
             md_path = txt_path.with_suffix('.md')
             format_transcript(txt_path, md_path, prompt_path)
             print(f"\nDone! Transcript saved to {md_path}")
@@ -115,7 +118,7 @@ def main() -> None:
         download_audio(args.url, paths['mp3'])
         transcribe(paths['mp3'], paths['txt'], args.model)
 
-        if run_format:
+        if args.format:
             format_transcript(paths['txt'], paths['md'], prompt_path)
             print(f"\nDone! Transcript saved to {paths['md']}")
         else:
